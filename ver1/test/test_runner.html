@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSL2flow — Тестовый стенд</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      padding: 20px;
+    }
+    h1 { margin-bottom: 16px; font-size: 1.3rem; }
+    h2 { font-size: 1rem; margin: 16px 0 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border: none; border-radius: 7px;
+      font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-danger  { background: #dc2626; color: #fff; }
+    .btn-outline { background: transparent; color: #4f46e5; border: 1.5px solid #4f46e5; }
+    .btn + .btn { margin-left: 8px; }
+
+    .test-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+
+    /* Панель результатов тестов */
+    #results {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .test-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.85rem;
+    }
+    .test-row:last-child { border-bottom: none; }
+    .test-name { flex: 1; }
+    .status-pass { color: #16a34a; font-weight: 700; }
+    .status-fail { color: #dc2626; font-weight: 700; }
+    .status-skip { color: #9ca3af; font-weight: 700; }
+
+    /* Лог */
+    #log-panel {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      overflow: hidden;
+      resize: vertical;
+      min-height: 120px;
+      max-height: 600px;
+      height: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+    .log-header {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .log-header-btns { display: flex; gap: 8px; }
+    .log-header-btns button {
+      padding: 2px 10px; font-size: 0.78rem;
+      border: 1px solid #9ca3af; border-radius: 4px;
+      background: transparent; color: #e0e0e0; cursor: pointer;
+    }
+    #log-output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: #374151;
+      background: #f8fafc;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    #log-panel::after {
+      content: '';
+      display: block;
+      align-self: flex-end;
+      width: 14px; height: 14px;
+      background: linear-gradient(135deg, transparent 50%, #9ca3af 50%);
+      border-radius: 0 0 8px 0;
+      flex-shrink: 0;
+      pointer-events: none;
+    }
+
+    .summary { font-size: 0.9rem; margin-bottom: 8px; font-weight: 600; }
+    .summary .pass { color: #16a34a; }
+    .summary .fail { color: #dc2626; }
+  </style>
+</head>
+<body>
+
+<h1>DSL2flow — Тестовый стенд</h1>
+<p style="font-size:.85rem;color:#6b7280;margin-bottom:16px;">
+  Проверяет все основные функции: разбор DSL, генерацию JS, движок процесса, переходы состояний документов.
+</p>
+
+<div class="test-controls">
+  <button class="btn btn-primary" id="btn-run-all">▶ Запустить все тесты</button>
+  <button class="btn btn-outline" id="btn-save-log">💾 Сохранить лог</button>
+  <button class="btn btn-outline" id="btn-clear-log">✕ Очистить лог</button>
+</div>
+
+<div id="results">
+  <div style="color:#9ca3af;font-size:.85rem;">Нажмите «Запустить все тесты» для начала.</div>
+</div>
+
+<div id="log-panel">
+  <div class="log-header">
+    <span>Лог тестирования</span>
+    <div class="log-header-btns">
+      <button id="btn-save-log2">💾 Сохранить</button>
+      <button id="btn-clear-log2">✕ Очистить</button>
+    </div>
+  </div>
+  <div id="log-output"></div>
+</div>
+
+<!-- Загружаем транслятор из папки выше -->
+<script src="../translator.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================================================================== */
+  /* МИНИМАЛЬНЫЙ DSL ДЛЯ ТЕСТОВ                                          */
+  /* ================================================================== */
+
+  const SIMPLE_DSL = `process TestProcess:
+  title: "Test Process"
+
+  documents:
+    Doc:
+      states:
+        - draft
+        - submitted
+        - approved
+        - rejected
+
+  roles:
+    - Applicant
+    - Manager
+    - Supervisor
+
+  workflow:
+    start: Start
+
+    steps:
+      - function Step1:
+          role: Applicant
+          system: WebForm
+          input_doc:
+            - Doc.draft
+          output_doc:
+            - Doc.submitted
+          on_complete:
+            - event: Submitted
+              next: Step2
+
+      - function Step2:
+          role: Manager
+          system: WebForm
+          input_doc:
+            - Doc.submitted
+          output_doc:
+            - Doc.approved
+            - Doc.rejected
+          on_complete:
+            - event: Approved
+              condition: "decision == 'approved'"
+              output_doc: Doc.approved
+              next: end
+            - event: Rejected
+              condition: "decision == 'rejected'"
+              output_doc: Doc.rejected
+              next: end
+
+    end: End`;
+
+  /* ================================================================== */
+  /* УТИЛИТЫ                                                              */
+  /* ================================================================== */
+
+  const results = [];
+  let passed = 0;
+  let failed = 0;
+
+  function log(msg) {
+    const el = document.getElementById('log-output');
+    const ts = new Date().toTimeString().slice(0, 8);
+    el.textContent += '[' + ts + '] ' + msg + '\n';
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function assert(name, condition, detail) {
+    if (condition) {
+      passed++;
+      results.push({ name, status: 'pass', detail: detail || '' });
+      log('  ✓ PASS: ' + name + (detail ? ' — ' + detail : ''));
+    } else {
+      failed++;
+      results.push({ name, status: 'fail', detail: detail || 'assertion failed' });
+      log('  ✗ FAIL: ' + name + (detail ? ' — ' + detail : ''));
+    }
+  }
+
+  function section(title) {
+    log('');
+    log('=== ' + title + ' ===');
+  }
+
+  /* ================================================================== */
+  /* ТЕСТЫ                                                                */
+  /* ================================================================== */
+
+  function runAllTests() {
+    passed = 0;
+    failed = 0;
+    results.length = 0;
+    log('Запуск тестов: ' + new Date().toLocaleString());
+
+    testParser();
+    testMermaidGenerator();
+    testJSGenerator();
+    testEngineBasic();
+    testEngineDocTransitions();
+    testEngineRoleCheck();
+    testEngineSupervisor();
+    testEngineHistory();
+    testEngineApprovalPath();
+    testEngineRejectionPath();
+
+    log('');
+    log('=== ИТОГО: ' + passed + ' пройдено, ' + failed + ' не пройдено ===');
+    renderResults();
+  }
+
+  /* ---- 1. Тест парсера ---- */
+  function testParser() {
+    section('1. Парсер DSL2');
+    let def;
+    try {
+      def = DSL2Translator.parse(SIMPLE_DSL);
+      assert('parse() не выбросил исключение', true);
+    } catch(e) {
+      assert('parse() не выбросил исключение', false, e.message);
+      return;
+    }
+    assert('name == "TestProcess"', def.name === 'TestProcess', 'name=' + def.name);
+    assert('title == "Test Process"', def.title === 'Test Process', 'title=' + def.title);
+    assert('documents содержит Doc', !!def.documents['Doc'], JSON.stringify(Object.keys(def.documents)));
+    assert('Doc имеет 4 состояния', def.documents['Doc'].states.length === 4,
+           'states=' + JSON.stringify(def.documents['Doc'].states));
+    assert('roles содержит 3 роли', def.roles.length === 3, 'roles=' + JSON.stringify(def.roles));
+    assert('workflow имеет 2 шага', def.workflow.steps.length === 2,
+           'steps=' + def.workflow.steps.length);
+    assert('start == "Start"', def.workflow.start === 'Start', 'start=' + def.workflow.start);
+    assert('end == "End"', def.workflow.end === 'End', 'end=' + def.workflow.end);
+    const step1 = def.workflow.steps[0];
+    assert('Step1 имеет роль Applicant', step1.role === 'Applicant', 'role=' + step1.role);
+    assert('Step1 имеет 1 событие on_complete', step1.on_complete.length === 1,
+           'on_complete.length=' + step1.on_complete.length);
+    const step2 = def.workflow.steps[1];
+    assert('Step2 имеет 2 события on_complete', step2.on_complete.length === 2,
+           'on_complete.length=' + step2.on_complete.length);
+  }
+
+  /* ---- 2. Тест генератора Mermaid ---- */
+  function testMermaidGenerator() {
+    section('2. Генератор Mermaid');
+    let code;
+    try {
+      const result = DSL2Translator.translate(SIMPLE_DSL);
+      code = result.mermaidCode;
+      assert('translate() вернул mermaidCode', typeof code === 'string' && code.length > 0,
+             'length=' + code.length);
+    } catch(e) {
+      assert('translate() не выбросил исключение', false, e.message);
+      return;
+    }
+    assert('mermaidCode содержит "flowchart"', code.includes('flowchart'),
+           'первые 30 символов: ' + code.slice(0, 30));
+    assert('mermaidCode содержит "Step1"', code.includes('Step1'));
+    assert('mermaidCode содержит "Step2"', code.includes('Step2'));
+    assert('mermaidCode содержит "Submitted"', code.includes('Submitted'));
+    assert('mermaidCode содержит "Approved"', code.includes('Approved'));
+    assert('mermaidCode содержит "Rejected"', code.includes('Rejected'));
+    assert('mermaidCode содержит "Start"', code.includes('Start'));
+    assert('mermaidCode содержит "End"', code.includes('End'));
+  }
+
+  /* ---- 3. Тест генератора JS ---- */
+  function testJSGenerator() {
+    section('3. Генератор JavaScript');
+    let jsCode;
+    try {
+      const result = DSL2Translator.translate(SIMPLE_DSL);
+      jsCode = result.jsCode;
+      assert('translate() вернул jsCode', typeof jsCode === 'string' && jsCode.length > 0,
+             'length=' + jsCode.length);
+    } catch(e) {
+      assert('translate() не выбросил исключение', false, e.message);
+      return;
+    }
+    assert('jsCode содержит "createInstance"', jsCode.includes('createInstance'));
+    assert('jsCode содержит "execute"', jsCode.includes('execute'));
+    assert('jsCode содержит "getState"', jsCode.includes('getState'));
+    assert('jsCode содержит "getHistory"', jsCode.includes('getHistory'));
+    assert('jsCode содержит "TestProcessEngine"', jsCode.includes('TestProcessEngine'));
+  }
+
+  /* ---- Вспомогательная функция создания движка ---- */
+  function createEngine() {
+    const result = DSL2Translator.translate(SIMPLE_DSL);
+    let eng;
+    try {
+      const factory = new Function(result.jsCode + '\nreturn window["TestProcessEngine"];');
+      eng = factory();
+    } catch(e) {
+      eval(result.jsCode); // eslint-disable-line no-eval
+      eng = window['TestProcessEngine'];
+    }
+    return eng;
+  }
+
+  /* ---- 4. Тест базовой работы движка ---- */
+  function testEngineBasic() {
+    section('4. Базовая работа движка');
+    let eng;
+    try {
+      eng = createEngine();
+      assert('Движок создан', !!eng);
+    } catch(e) {
+      assert('Движок создан', false, e.message);
+      return;
+    }
+    assert('createInstance() не null', !!eng.createInstance());
+    const st = eng.getState();
+    assert('getState() не null', !!st);
+    assert('Начальная функция: Step1', st.currentFunction === 'Step1',
+           'currentFunction=' + st.currentFunction);
+    assert('Начальный токен: Start', st.workflowToken === 'Start',
+           'workflowToken=' + st.workflowToken);
+    assert('finished == false', st.finished === false, 'finished=' + st.finished);
+    assert('tick == 1 (после инициализации)', st.tick === 1, 'tick=' + st.tick);
+    const def = eng.getDefinition();
+    assert('getDefinition() возвращает имя процесса', def.name === 'TestProcess',
+           'name=' + def.name);
+  }
+
+  /* ---- 5. Тест переходов документов ---- */
+  function testEngineDocTransitions() {
+    section('5. Переходы состояний документов');
+    const eng = createEngine();
+    eng.createInstance();
+    const st0 = eng.getState();
+    assert('Начальное состояние Doc: draft', st0.docTokens['Doc'] === 'draft',
+           'Doc=' + st0.docTokens['Doc']);
+
+    // Шаг 1: Applicant подаёт
+    const r1 = eng.execute('Applicant', null);
+    assert('Step1: execute() вернул ok=true', r1.ok === true, 'error=' + r1.error);
+    assert('Step1: событие Submitted', r1.event === 'Submitted', 'event=' + r1.event);
+    const st1 = eng.getState();
+    assert('После Step1: Doc == submitted', st1.docTokens['Doc'] === 'submitted',
+           'Doc=' + st1.docTokens['Doc']);
+    assert('После Step1: текущая функция Step2', st1.currentFunction === 'Step2',
+           'currentFunction=' + st1.currentFunction);
+  }
+
+  /* ---- 6. Тест проверки ролей ---- */
+  function testEngineRoleCheck() {
+    section('6. Проверка ролей');
+    const eng = createEngine();
+    eng.createInstance();
+    // Шаг 1 требует роль Applicant
+    const r_wrong = eng.execute('Manager', null);
+    assert('Неправильная роль: ok=false', r_wrong.ok === false,
+           'ok=' + r_wrong.ok + ', error=' + r_wrong.error);
+    // Правильная роль должна сработать
+    const r_right = eng.execute('Applicant', null);
+    assert('Правильная роль: ok=true', r_right.ok === true, 'error=' + r_right.error);
+  }
+
+  /* ---- 7. Тест Supervisor ---- */
+  function testEngineSupervisor() {
+    section('7. Supervisor (суперпользователь)');
+    const eng = createEngine();
+    eng.createInstance();
+    // Supervisor может выполнить любую функцию
+    const r = eng.execute('Supervisor', null);
+    assert('Supervisor выполнил Step1: ok=true', r.ok === true, 'error=' + r.error);
+  }
+
+  /* ---- 8. Тест истории ---- */
+  function testEngineHistory() {
+    section('8. История выполнения');
+    const eng = createEngine();
+    eng.createInstance();
+    assert('История после createInstance: 1 запись', eng.getHistory().length === 1,
+           'length=' + eng.getHistory().length);
+    eng.execute('Applicant', null);
+    assert('История после Step1: 2 записи', eng.getHistory().length === 2,
+           'length=' + eng.getHistory().length);
+  }
+
+  /* ---- 9. Тест полного пути одобрения ---- */
+  function testEngineApprovalPath() {
+    section('9. Полный путь: одобрение');
+    const eng = createEngine();
+    eng.createInstance();
+    // Step1: Applicant подаёт
+    const r1 = eng.execute('Applicant', null);
+    assert('Step1 ok', r1.ok, 'error=' + r1.error);
+    // Step2: Manager одобряет
+    const r2 = eng.execute('Manager', 'approved');
+    assert('Step2 Approved ok', r2.ok, 'error=' + r2.error);
+    assert('Step2: событие Approved', r2.event === 'Approved', 'event=' + r2.event);
+    assert('Процесс завершён после одобрения', r2.finished === true,
+           'finished=' + r2.finished);
+    const st = eng.getState();
+    assert('finished == true в state', st.finished === true);
+    assert('Doc == approved', st.docTokens['Doc'] === 'approved',
+           'Doc=' + st.docTokens['Doc']);
+  }
+
+  /* ---- 10. Тест полного пути отклонения ---- */
+  function testEngineRejectionPath() {
+    section('10. Полный путь: отклонение');
+    const eng = createEngine();
+    eng.createInstance();
+    eng.execute('Applicant', null);
+    const r2 = eng.execute('Manager', 'rejected');
+    assert('Step2 Rejected ok', r2.ok, 'error=' + r2.error);
+    assert('Step2: событие Rejected', r2.event === 'Rejected', 'event=' + r2.event);
+    assert('Процесс завершён после отклонения', r2.finished === true,
+           'finished=' + r2.finished);
+    const st = eng.getState();
+    assert('Doc == rejected', st.docTokens['Doc'] === 'rejected',
+           'Doc=' + st.docTokens['Doc']);
+  }
+
+  /* ================================================================== */
+  /* ОТРИСОВКА РЕЗУЛЬТАТОВ                                               */
+  /* ================================================================== */
+
+  function renderResults() {
+    const container = document.getElementById('results');
+    container.innerHTML = '';
+
+    const summary = document.createElement('div');
+    summary.className = 'summary';
+    summary.innerHTML =
+      'Результат: <span class="pass">' + passed + ' пройдено</span> / ' +
+      '<span class="fail">' + failed + ' не пройдено</span> ' +
+      '(всего: ' + (passed + failed) + ')';
+    container.appendChild(summary);
+
+    for (const r of results) {
+      const row = document.createElement('div');
+      row.className = 'test-row';
+
+      const name = document.createElement('span');
+      name.className = 'test-name';
+      name.textContent = r.name;
+
+      const status = document.createElement('span');
+      status.className = r.status === 'pass' ? 'status-pass' : 'status-fail';
+      status.textContent = r.status === 'pass' ? '✓ PASS' : '✗ FAIL';
+
+      const detail = document.createElement('span');
+      detail.style.fontSize = '0.75rem';
+      detail.style.color = '#9ca3af';
+      detail.textContent = r.detail;
+
+      row.appendChild(name);
+      row.appendChild(status);
+      if (r.detail) row.appendChild(detail);
+      container.appendChild(row);
+    }
+  }
+
+  /* ================================================================== */
+  /* ЛОГ — СОХРАНЕНИЕ                                                    */
+  /* ================================================================== */
+
+  function saveLog() {
+    const text = document.getElementById('log-output').textContent;
+    if (!text.trim()) { alert('Лог пуст.'); return; }
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dsl2flow_test_log_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function clearLog() {
+    document.getElementById('log-output').textContent = '';
+    document.getElementById('results').innerHTML =
+      '<div style="color:#9ca3af;font-size:.85rem;">Нажмите «Запустить все тесты» для начала.</div>';
+  }
+
+  /* ---- Привязка кнопок ---- */
+  document.getElementById('btn-run-all').addEventListener('click', runAllTests);
+  document.getElementById('btn-save-log').addEventListener('click', saveLog);
+  document.getElementById('btn-clear-log').addEventListener('click', clearLog);
+  document.getElementById('btn-save-log2').addEventListener('click', saveLog);
+  document.getElementById('btn-clear-log2').addEventListener('click', clearLog);
+
+})();
+</script>
+</body>
+</html>
