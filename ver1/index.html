@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DSL2flow — Leave Request Approval</title>
+  <title>DSL2flow — BPMN Engine Demo</title>
 
-  <!-- Mermaid for EPC2 diagrams -->
+  <!-- Mermaid для EPC2 диаграмм -->
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <!-- SheetJS for Excel export -->
+  <!-- SheetJS для экспорта в Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
@@ -23,25 +23,40 @@
     header {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       color: #e0e0e0;
-      padding: 16px 24px;
+      padding: 12px 24px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 16px;
       box-shadow: 0 2px 8px rgba(0,0,0,.4);
     }
-    header h1 { font-size: 1.3rem; font-weight: 600; }
-    header .subtitle { font-size: 0.85rem; color: #9ca3af; }
+    header h1 { font-size: 1.2rem; font-weight: 600; }
+    header .subtitle { font-size: 0.8rem; color: #9ca3af; }
 
+    /* Кнопка переключения языка */
+    #btn-lang {
+      padding: 5px 14px;
+      background: transparent;
+      border: 1.5px solid #9ca3af;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      flex-shrink: 0;
+    }
+    #btn-lang:hover { background: rgba(255,255,255,.1); border-color: #e0e0e0; }
+
+    /* Сетка основного контента */
     .main-grid {
       display: grid;
       grid-template-columns: 340px 1fr;
-      grid-template-rows: auto 1fr;
       gap: 16px;
       padding: 16px;
-      min-height: calc(100vh - 64px);
     }
 
-    /* ---- PANELS ---- */
+    /* ---- ПАНЕЛИ ---- */
     .panel {
       background: #fff;
       border-radius: 10px;
@@ -59,16 +74,16 @@
     }
     .panel-body { padding: 16px; }
 
-    /* ---- LEFT COLUMN ---- */
+    /* ---- ЛЕВАЯ КОЛОНКА ---- */
     .left-col {
       grid-column: 1;
-      grid-row: 1 / 3;
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
 
-    /* Role selector */
+    /* Выбор роли — фиксированный z-index, чтобы список был поверх других панелей */
+    .role-selector { position: relative; z-index: 100; }
     .role-selector label { font-size: 0.85rem; color: #6b7280; margin-bottom: 6px; display: block; }
     .role-selector select {
       width: 100%;
@@ -77,9 +92,11 @@
       border-radius: 6px;
       font-size: 0.95rem;
       background: #fff;
+      /* Минимальная высота для корректного отображения выпадающего списка */
+      min-height: 38px;
     }
 
-    /* Process status */
+    /* Панель процесса */
     .status-box {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
@@ -92,10 +109,11 @@
     .status-row { margin-bottom: 10px; }
     .status-row:last-child { margin-bottom: 0; }
 
-    /* Action panel */
+    /* Панель действий */
     .action-area { display: flex; flex-direction: column; gap: 10px; }
     .action-area .hint { font-size: 0.82rem; color: #6b7280; }
 
+    /* ---- КНОПКИ ---- */
     .btn {
       display: inline-flex;
       align-items: center;
@@ -130,7 +148,7 @@
     }
     #toast.show { opacity: 1; }
 
-    /* ---- RIGHT COLUMN ---- */
+    /* ---- ПРАВАЯ КОЛОНКА ---- */
     .right-col {
       grid-column: 2;
       display: flex;
@@ -138,7 +156,7 @@
       gap: 16px;
     }
 
-    /* Tabs */
+    /* Вкладки */
     .tabs { display: flex; gap: 2px; border-bottom: 2px solid #e5e7eb; padding: 0 16px; }
     .tab-btn {
       padding: 10px 18px;
@@ -157,7 +175,7 @@
     .tab-content { display: none; padding: 16px; flex: 1; }
     .tab-content.active { display: block; }
 
-    /* Mermaid diagram */
+    /* Mermaid диаграмма */
     #mermaid-container {
       background: #fafafa;
       border: 1px solid #e5e7eb;
@@ -168,7 +186,7 @@
     }
     #mermaid-container .mermaid { display: flex; justify-content: center; }
 
-    /* State table */
+    /* Таблица состояний */
     .table-toolbar {
       display: flex;
       justify-content: space-between;
@@ -208,7 +226,7 @@
     .badge-red   { background: #fee2e2; color: #b91c1c; }
     .badge-gray  { background: #f3f4f6; color: #374151; }
 
-    /* DSL source panel */
+    /* DSL Source панель */
     textarea#dsl-source {
       width: 100%;
       height: 400px;
@@ -221,9 +239,9 @@
       background: #1e1e2e;
       color: #cdd6f4;
     }
-    .dsl-toolbar { display: flex; gap: 8px; margin-bottom: 8px; }
+    .dsl-toolbar { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 
-    /* Finished overlay */
+    /* Баннер завершения процесса */
     .finished-banner {
       background: linear-gradient(135deg, #16a34a, #15803d);
       color: #fff;
@@ -234,7 +252,7 @@
       margin-bottom: 10px;
     }
 
-    /* Doc tokens */
+    /* Токены документов */
     .doc-token-list { list-style: none; }
     .doc-token-list li {
       display: flex;
@@ -245,123 +263,225 @@
       font-size: 0.85rem;
     }
     .doc-token-list li:last-child { border-bottom: none; }
+
+    /* ---- СТРОКА ЗАГРУЗКИ ПРИМЕРА ---- */
+    .load-example-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .load-example-row select {
+      flex: 1;
+      min-width: 120px;
+      padding: 6px 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      background: #fff;
+    }
+
+    /* ---- ОКНО СТАТУС / ЛОГ (растягиваемое) ---- */
+    #status-log-wrapper {
+      width: 100%;
+      padding: 0 16px 0 16px;
+      margin-top: 0;
+    }
+    #status-log-panel {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      overflow: hidden;
+      /* resize позволяет тянуть правый нижний угол */
+      resize: vertical;
+      min-height: 80px;
+      max-height: 600px;
+      height: 160px;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 16px;
+    }
+    .log-header {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .log-header-btns { display: flex; gap: 8px; }
+    .log-header-btns button {
+      padding: 2px 10px;
+      font-size: 0.78rem;
+      border: 1px solid #9ca3af;
+      border-radius: 4px;
+      background: transparent;
+      color: #e0e0e0;
+      cursor: pointer;
+    }
+    .log-header-btns button:hover { background: rgba(255,255,255,.1); }
+    #log-output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: #374151;
+      background: #f8fafc;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    /* Уголок для изменения размера */
+    #status-log-panel::after {
+      content: '';
+      display: block;
+      position: relative;
+      align-self: flex-end;
+      width: 14px;
+      height: 14px;
+      background: linear-gradient(135deg, transparent 50%, #9ca3af 50%);
+      border-radius: 0 0 8px 0;
+      flex-shrink: 0;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
 
 <header>
   <div>
-    <h1>DSL2flow — BPMN-Engine Demo</h1>
-    <div class="subtitle">Leave Request Approval &nbsp;·&nbsp; EPC2 / DSL2 / Workflow + Docflow</div>
+    <h1 data-i18n="title">DSL2flow — BPMN-Engine Demo</h1>
+    <div class="subtitle" data-i18n="subtitle">EPC2 / DSL2 / Workflow + Docflow</div>
   </div>
+  <button id="btn-lang" title="Switch language / Переключить язык">EN</button>
 </header>
 
 <div class="main-grid">
 
-  <!-- ===== LEFT COLUMN ===== -->
+  <!-- ===== ЛЕВАЯ КОЛОНКА ===== -->
   <div class="left-col">
 
-    <!-- Role Selector -->
+    <!-- Загрузка примера -->
     <div class="panel">
-      <div class="panel-header">Active Role</div>
+      <div class="panel-header" data-i18n="load_example_title">Загрузить пример</div>
       <div class="panel-body">
-        <div class="role-selector">
-          <label for="role-select">Select your role:</label>
-          <select id="role-select"></select>
+        <div class="load-example-row">
+          <select id="example-select">
+            <option value="">— <span data-i18n="select_example">выберите пример</span> —</option>
+            <option value="example_en">example_en.dsl2 (EN)</option>
+            <option value="example_ru">example_ru.dsl2 (RU)</option>
+          </select>
+          <button class="btn btn-primary btn-sm" id="btn-load-example" data-i18n="btn_load">Загрузить</button>
         </div>
       </div>
     </div>
 
-    <!-- Process Status -->
+    <!-- Выбор роли -->
+    <div class="panel" style="overflow: visible;">
+      <div class="panel-header" data-i18n="active_role">Активная роль</div>
+      <div class="panel-body" style="overflow: visible;">
+        <div class="role-selector">
+          <label for="role-select" data-i18n="select_role_label">Выберите роль:</label>
+          <select id="role-select" size="1"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Статус процесса -->
     <div class="panel" id="status-panel">
-      <div class="panel-header">Process Status</div>
+      <div class="panel-header" data-i18n="process_status">Статус процесса</div>
       <div class="panel-body">
-        <div id="finished-banner" class="finished-banner" style="display:none">
-          Process Finished ✓
+        <div id="finished-banner" class="finished-banner" style="display:none" data-i18n="process_finished">
+          Процесс завершён ✓
         </div>
         <div class="status-box">
           <div class="status-row">
-            <div class="label">Current Function</div>
+            <div class="label" data-i18n="current_function">Текущая функция</div>
             <div class="value" id="s-function">—</div>
           </div>
           <div class="status-row">
-            <div class="label">Required Role</div>
+            <div class="label" data-i18n="required_role">Требуемая роль</div>
             <div class="value" id="s-role">—</div>
           </div>
           <div class="status-row">
-            <div class="label">Workflow Token</div>
+            <div class="label" data-i18n="workflow_token">Токен Workflow</div>
             <div class="value" id="s-wf-token">—</div>
           </div>
           <div class="status-row">
-            <div class="label">Tick</div>
+            <div class="label" data-i18n="tick">Шаг</div>
             <div class="value" id="s-tick">0</div>
           </div>
         </div>
         <br/>
-        <div class="panel-header" style="margin: -4px -0px 8px; border-radius:6px; font-size:.78rem;">Document Tokens</div>
+        <div class="panel-header" style="margin: -4px -0px 8px; border-radius:6px; font-size:.78rem;" data-i18n="doc_tokens">Токены документов</div>
         <ul class="doc-token-list" id="doc-token-list"></ul>
       </div>
     </div>
 
-    <!-- Action Panel -->
+    <!-- Панель действий -->
     <div class="panel" id="action-panel">
-      <div class="panel-header">Actions</div>
+      <div class="panel-header" data-i18n="actions">Действия</div>
       <div class="panel-body action-area">
-        <div class="hint" id="action-hint">Start the process to begin.</div>
+        <div class="hint" id="action-hint" data-i18n="hint_start">Запустите процесс для начала.</div>
         <div id="action-buttons"></div>
       </div>
     </div>
 
-    <!-- Controls -->
+    <!-- Управление -->
     <div class="panel">
-      <div class="panel-header">Controls</div>
+      <div class="panel-header" data-i18n="controls">Управление</div>
       <div class="panel-body" style="display:flex;flex-direction:column;gap:8px;">
-        <button class="btn btn-primary btn-full" id="btn-start">▶ Start / Restart Process</button>
-        <button class="btn btn-outline btn-full btn-sm" id="btn-export-excel">⬇ Export State Table (Excel)</button>
+        <button class="btn btn-primary btn-full" id="btn-start" data-i18n="btn_start">▶ Запустить / Перезапустить</button>
+        <button class="btn btn-outline btn-full btn-sm" id="btn-export-excel" data-i18n="btn_export">⬇ Экспорт таблицы (Excel)</button>
       </div>
     </div>
 
   </div><!-- /left-col -->
 
-  <!-- ===== RIGHT COLUMN ===== -->
+  <!-- ===== ПРАВАЯ КОЛОНКА ===== -->
   <div class="right-col panel">
     <div class="tabs">
-      <button class="tab-btn active" data-tab="diagram">EPC2 Diagram</button>
-      <button class="tab-btn" data-tab="table">State Table</button>
-      <button class="tab-btn" data-tab="dsl">DSL Source</button>
-      <button class="tab-btn" data-tab="js">Generated JS</button>
+      <button class="tab-btn active" data-tab="diagram" data-i18n="tab_diagram">EPC2 Диаграмма</button>
+      <button class="tab-btn" data-tab="table" data-i18n="tab_table">Таблица состояний</button>
+      <button class="tab-btn" data-tab="dsl" data-i18n="tab_dsl">DSL Source</button>
+      <button class="tab-btn" data-tab="js" data-i18n="tab_js">Сгенерированный JS</button>
     </div>
 
-    <!-- EPC2 Diagram -->
+    <!-- EPC2 Диаграмма -->
     <div class="tab-content active" id="tab-diagram">
       <div id="mermaid-container">
         <div class="mermaid" id="mermaid-diagram">
-          <!-- will be rendered by Mermaid.js -->
+          <!-- Будет отрисовано Mermaid.js -->
         </div>
       </div>
     </div>
 
-    <!-- State Table -->
+    <!-- Таблица состояний -->
     <div class="tab-content" id="tab-table">
       <div class="table-toolbar">
-        <strong style="font-size:.9rem;">Execution Trace</strong>
-        <button class="btn btn-outline btn-sm" id="btn-export-excel-2">⬇ Export Excel</button>
+        <strong style="font-size:.9rem;" data-i18n="execution_trace">Трассировка выполнения</strong>
+        <button class="btn btn-outline btn-sm" id="btn-export-excel-2" data-i18n="btn_export_short">⬇ Excel</button>
       </div>
       <div class="table-wrapper">
         <table id="state-table">
           <thead>
             <tr>
-              <th>Tick</th>
-              <th>Function</th>
-              <th>Role</th>
-              <th>WF Token Before</th>
-              <th>WF Token After</th>
-              <th>Event Fired</th>
-              <th>Doc Transitions</th>
+              <th data-i18n="th_tick">Шаг</th>
+              <th data-i18n="th_function">Функция</th>
+              <th data-i18n="th_role">Роль</th>
+              <th data-i18n="th_wf_before">Токен до</th>
+              <th data-i18n="th_wf_after">Токен после</th>
+              <th data-i18n="th_event">Событие</th>
+              <th data-i18n="th_doc_trans">Переходы документов</th>
             </tr>
           </thead>
           <tbody id="state-table-body">
-            <tr><td colspan="7" style="color:#9ca3af;padding:20px;text-align:center;">Start the process to see execution trace.</td></tr>
+            <tr><td colspan="7" style="color:#9ca3af;padding:20px;text-align:center;" data-i18n="table_empty">Запустите процесс для отображения трассировки.</td></tr>
           </tbody>
         </table>
       </div>
@@ -370,12 +490,12 @@
     <!-- DSL Source -->
     <div class="tab-content" id="tab-dsl">
       <div class="dsl-toolbar">
-        <button class="btn btn-primary btn-sm" id="btn-reload-dsl">⟳ Re-translate & Restart</button>
+        <button class="btn btn-primary btn-sm" id="btn-reload-dsl" data-i18n="btn_retranslate">⟳ Перетранслировать и перезапустить</button>
       </div>
       <textarea id="dsl-source"></textarea>
     </div>
 
-    <!-- Generated JS -->
+    <!-- Сгенерированный JS -->
     <div class="tab-content" id="tab-js">
       <pre id="generated-js-pre" style="
         background:#1e1e2e; color:#cdd6f4;
@@ -389,6 +509,20 @@
 
 </div><!-- /main-grid -->
 
+<!-- ===== ЛОГ / СТАТУС (растягиваемое окно внизу) ===== -->
+<div id="status-log-wrapper">
+  <div id="status-log-panel">
+    <div class="log-header">
+      <span data-i18n="log_title">Статус / Лог</span>
+      <div class="log-header-btns">
+        <button id="btn-log-save" data-i18n="btn_save_log">💾 Сохранить лог</button>
+        <button id="btn-log-clear" data-i18n="btn_clear_log">✕ Очистить</button>
+      </div>
+    </div>
+    <div id="log-output"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- ===================== Translator ===================== -->
@@ -399,8 +533,158 @@
 (function () {
   'use strict';
 
-  /* ---- Default DSL2 source ---- */
-  const DEFAULT_DSL = `process LeaveApproval:
+  /* ================================================================== */
+  /* ЛОКАЛИЗАЦИЯ                                                          */
+  /* ================================================================== */
+
+  // Словари перевода
+  const I18N = {
+    ru: {
+      title:           'DSL2flow — BPMN-Engine Demo',
+      subtitle:        'EPC2 / DSL2 / Workflow + Docflow',
+      load_example_title: 'Загрузить пример',
+      select_example:  'выберите пример',
+      btn_load:        'Загрузить',
+      active_role:     'Активная роль',
+      select_role_label: 'Выберите роль:',
+      process_status:  'Статус процесса',
+      process_finished:'Процесс завершён ✓',
+      current_function:'Текущая функция',
+      required_role:   'Требуемая роль',
+      workflow_token:  'Токен Workflow',
+      tick:            'Шаг',
+      doc_tokens:      'Токены документов',
+      actions:         'Действия',
+      hint_start:      'Запустите процесс для начала.',
+      controls:        'Управление',
+      btn_start:       '▶ Запустить / Перезапустить',
+      btn_export:      '⬇ Экспорт таблицы (Excel)',
+      tab_diagram:     'EPC2 Диаграмма',
+      tab_table:       'Таблица состояний',
+      tab_dsl:         'DSL Source',
+      tab_js:          'Сгенерированный JS',
+      execution_trace: 'Трассировка выполнения',
+      btn_export_short:'⬇ Excel',
+      th_tick:         'Шаг',
+      th_function:     'Функция',
+      th_role:         'Роль',
+      th_wf_before:    'Токен до',
+      th_wf_after:     'Токен после',
+      th_event:        'Событие',
+      th_doc_trans:    'Переходы документов',
+      table_empty:     'Запустите процесс для отображения трассировки.',
+      btn_retranslate: '⟳ Перетранслировать и перезапустить',
+      log_title:       'Статус / Лог',
+      btn_save_log:    '💾 Сохранить лог',
+      btn_clear_log:   '✕ Очистить',
+      toast_loaded:    'Пример загружен: ',
+      toast_retranslated: 'DSL перетранслирован и процесс перезапущен.',
+      toast_started:   'Процесс запущен.',
+      toast_exported:  'Экспортировано в Excel.',
+      toast_no_history:'История пуста.',
+      toast_no_process:'Процесс не загружен.',
+      toast_log_saved: 'Лог сохранён.',
+      toast_log_cleared:'Лог очищен.',
+      toast_select_example: 'Выберите пример из списка.',
+      err_parse:       'Ошибка разбора DSL: ',
+      err_no_event:    'Нет подходящего события для решения: ',
+      err_not_started: 'Процесс не запущен или уже завершён.',
+      err_role:        'Роль "%s" не может выполнить "%s" (требуется "%s").',
+      label_approve:   'Согласовать / Approve',
+      label_reject:    'Отклонить / Reject',
+      label_submit:    'Подать / Submit',
+      label_complete:  'Завершить',
+      hint_role_needed:'Этот шаг требует роль: "%s". Смените роль для продолжения.',
+      hint_function:   'Функция: %s  ·  Роль: %s',
+      hint_system:     'Системная функция — автовыполнение...',
+      hint_finished:   'Процесс завершён. Нажмите "Запустить / Перезапустить" для нового запуска.',
+      hint_not_started:'Процесс не запущен.',
+      log_init:        '[ИНИЦИАЛИЗАЦИЯ] DSL загружен и разобран.',
+      log_started:     '[ЗАПУСК] Процесс запущен. Первая функция: ',
+      log_event:       '[СОБЫТИЕ] Сработало: ',
+      log_function:    '  → Следующая функция: ',
+      log_finished:    '[ЗАВЕРШЕНИЕ] Процесс завершён.',
+      log_error:       '[ОШИБКА] ',
+      log_loaded:      '[ЗАГРУЗКА] Загружен пример: ',
+      log_retranslated:'[DSL] Перетранслировано из редактора.',
+    },
+    en: {
+      title:           'DSL2flow — BPMN-Engine Demo',
+      subtitle:        'EPC2 / DSL2 / Workflow + Docflow',
+      load_example_title: 'Load Example',
+      select_example:  'select example',
+      btn_load:        'Load',
+      active_role:     'Active Role',
+      select_role_label: 'Select your role:',
+      process_status:  'Process Status',
+      process_finished:'Process Finished ✓',
+      current_function:'Current Function',
+      required_role:   'Required Role',
+      workflow_token:  'Workflow Token',
+      tick:            'Tick',
+      doc_tokens:      'Document Tokens',
+      actions:         'Actions',
+      hint_start:      'Start the process to begin.',
+      controls:        'Controls',
+      btn_start:       '▶ Start / Restart Process',
+      btn_export:      '⬇ Export State Table (Excel)',
+      tab_diagram:     'EPC2 Diagram',
+      tab_table:       'State Table',
+      tab_dsl:         'DSL Source',
+      tab_js:          'Generated JS',
+      execution_trace: 'Execution Trace',
+      btn_export_short:'⬇ Excel',
+      th_tick:         'Tick',
+      th_function:     'Function',
+      th_role:         'Role',
+      th_wf_before:    'WF Token Before',
+      th_wf_after:     'WF Token After',
+      th_event:        'Event Fired',
+      th_doc_trans:    'Doc Transitions',
+      table_empty:     'Start the process to see execution trace.',
+      btn_retranslate: '⟳ Re-translate & Restart',
+      log_title:       'Status / Log',
+      btn_save_log:    '💾 Save Log',
+      btn_clear_log:   '✕ Clear',
+      toast_loaded:    'Example loaded: ',
+      toast_retranslated: 'DSL re-translated and process restarted.',
+      toast_started:   'Process started.',
+      toast_exported:  'Exported to Excel.',
+      toast_no_history:'No history to export.',
+      toast_no_process:'No process loaded.',
+      toast_log_saved: 'Log saved.',
+      toast_log_cleared:'Log cleared.',
+      toast_select_example: 'Please select an example from the list.',
+      err_parse:       'DSL parse error: ',
+      err_no_event:    'No matching event for decision: ',
+      err_not_started: 'Process not started or already finished.',
+      err_role:        'Role "%s" cannot execute "%s" (requires "%s").',
+      label_approve:   'Согласовано / Approve',
+      label_reject:    'Отказано / Reject',
+      label_submit:    'Submit / На Согласование',
+      label_complete:  'Complete',
+      hint_role_needed:'This step requires role: "%s". Switch role to continue.',
+      hint_function:   'Function: %s  ·  Role: %s',
+      hint_system:     'System function — auto-executing...',
+      hint_finished:   'Process finished. Click "Start / Restart" to run again.',
+      hint_not_started:'Process not started.',
+      log_init:        '[INIT] DSL loaded and parsed.',
+      log_started:     '[START] Process started. First function: ',
+      log_event:       '[EVENT] Fired: ',
+      log_function:    '  → Next function: ',
+      log_finished:    '[FINISHED] Process finished.',
+      log_error:       '[ERROR] ',
+      log_loaded:      '[LOAD] Loaded example: ',
+      log_retranslated:'[DSL] Re-translated from editor.',
+    }
+  };
+
+  // Встроенные примеры DSL
+  const EXAMPLES = {
+    example_en: `# DSL2 Example: Leave Request Approval Process
+# Demonstrates workflow, docflow, roles, events, and EPC2 mapping
+
+process LeaveApproval:
   title: "Leave Request Approval"
 
   documents:
@@ -411,6 +695,10 @@
         - manager_approved
         - director_approved
         - rejected
+      transitions:
+        template --> submitted --> manager_approved --> director_approved
+        manager_approved --> rejected
+        director_approved --> rejected
 
   roles:
     - Applicant
@@ -440,6 +728,7 @@
             - LeaveRequest.submitted
           output_doc:
             - LeaveRequest.manager_approved
+            - LeaveRequest.rejected
           on_complete:
             - event: ManagerApproved
               condition: "decision == 'approved'"
@@ -457,6 +746,7 @@
             - LeaveRequest.manager_approved
           output_doc:
             - LeaveRequest.director_approved
+            - LeaveRequest.rejected
           on_complete:
             - event: DirectorApproved
               condition: "decision == 'approved'"
@@ -485,20 +775,119 @@
             - event: RejectionNotified
               next: end
 
-    end: ProcessEnd`;
+    end: ProcessEnd`,
 
-  /* ---- State ---- */
-  let engine = null;      // current engine object (from generated code)
+    example_ru: `# DSL2 Пример: Процесс согласования заявления на отпуск
+# Демонстрирует: workflow, docflow, роли, события и отображение EPC2
+
+process ОтпускСогласование:
+  title: "Согласование заявления на отпуск"
+
+  documents:
+    ЗаявлениеНаОтпуск:
+      states:
+        - шаблон
+        - подано
+        - согласовано_менеджером
+        - согласовано_директором
+        - отклонено
+      transitions:
+        шаблон --> подано --> согласовано_менеджером --> согласовано_директором
+        согласовано_менеджером --> отклонено
+        согласовано_директором --> отклонено
+
+  roles:
+    - Сотрудник
+    - Менеджер
+    - Директор
+    - Супервайзер
+
+  workflow:
+    start: НачалоПроцесса
+
+    steps:
+      - function ЗаполнитьИПодать:
+          role: Сотрудник
+          system: WebForm
+          input_doc:
+            - ЗаявлениеНаОтпуск.шаблон
+          output_doc:
+            - ЗаявлениеНаОтпуск.подано
+          on_complete:
+            - event: ЗаявлениеПодано
+              next: СогласоватьМенеджером
+
+      - function СогласоватьМенеджером:
+          role: Менеджер
+          system: WebForm
+          input_doc:
+            - ЗаявлениеНаОтпуск.подано
+          output_doc:
+            - ЗаявлениеНаОтпуск.согласовано_менеджером
+            - ЗаявлениеНаОтпуск.отклонено
+          on_complete:
+            - event: МенеджерСогласовал
+              condition: "decision == 'approved'"
+              output_doc: ЗаявлениеНаОтпуск.согласовано_менеджером
+              next: СогласоватьДиректором
+            - event: МенеджерОтклонил
+              condition: "decision == 'rejected'"
+              output_doc: ЗаявлениеНаОтпуск.отклонено
+              next: УведомитьОбОтказе
+
+      - function СогласоватьДиректором:
+          role: Директор
+          system: WebForm
+          input_doc:
+            - ЗаявлениеНаОтпуск.согласовано_менеджером
+          output_doc:
+            - ЗаявлениеНаОтпуск.согласовано_директором
+            - ЗаявлениеНаОтпуск.отклонено
+          on_complete:
+            - event: ДиректорСогласовал
+              condition: "decision == 'approved'"
+              output_doc: ЗаявлениеНаОтпуск.согласовано_директором
+              next: УведомитьОбОдобрении
+            - event: ДиректорОтклонил
+              condition: "decision == 'rejected'"
+              output_doc: ЗаявлениеНаОтпуск.отклонено
+              next: УведомитьОбОтказе
+
+      - function УведомитьОбОдобрении:
+          role: System
+          system: NotificationService
+          input_doc:
+            - ЗаявлениеНаОтпуск.согласовано_директором
+          on_complete:
+            - event: ОдобрениеУведомлено
+              next: end
+
+      - function УведомитьОбОтказе:
+          role: System
+          system: NotificationService
+          input_doc:
+            - ЗаявлениеНаОтпуск.отклонено
+          on_complete:
+            - event: ОтказУведомлён
+              next: end
+
+    end: КонецПроцесса`
+  };
+
+  /* ---- Состояние приложения ---- */
+  let currentLang = 'ru';   // текущий язык интерфейса
+  let engine = null;        // объект движка (из сгенерированного кода)
   let processDef = null;
   let mermaidCode = '';
   let jsCode = '';
 
-  /* ---- Boot ---- */
+  /* ---- Инициализация Mermaid ---- */
   mermaid.initialize({ startOnLoad: false, theme: 'default' });
-  document.getElementById('dsl-source').value = DEFAULT_DSL;
-  initFromDSL(DEFAULT_DSL);
 
-  /* ---- Tab switching ---- */
+  /* ---- Первичная загрузка: показываем пустой DSL ---- */
+  document.getElementById('dsl-source').value = '';
+
+  /* ---- Переключение вкладок ---- */
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -508,23 +897,116 @@
     });
   });
 
-  /* ---- Buttons ---- */
+  /* ---- Кнопки ---- */
   document.getElementById('btn-start').addEventListener('click', startProcess);
   document.getElementById('btn-reload-dsl').addEventListener('click', () => {
-    const src = document.getElementById('dsl-source').value;
+    const src = document.getElementById('dsl-source').value.trim();
+    if (!src) { toast(t('toast_no_process')); return; }
     initFromDSL(src);
     startProcess();
-    toast('DSL re-translated and process restarted.');
+    addLog(t('log_retranslated'));
+    toast(t('toast_retranslated'));
   });
   document.getElementById('btn-export-excel').addEventListener('click', exportExcel);
   document.getElementById('btn-export-excel-2').addEventListener('click', exportExcel);
-
-  /* ---- Role select change → refresh actions ---- */
   document.getElementById('role-select').addEventListener('change', renderActions);
+  document.getElementById('btn-load-example').addEventListener('click', loadSelectedExample);
+  document.getElementById('btn-log-save').addEventListener('click', saveLog);
+  document.getElementById('btn-log-clear').addEventListener('click', clearLog);
+  document.getElementById('btn-lang').addEventListener('click', toggleLang);
+
+  /* ---- Авто-загрузка примера EN при старте ---- */
+  loadExampleByKey('example_en');
 
   /* ================================================================== */
-  /* INIT FROM DSL                                                        */
+  /* ЛОКАЛИЗАЦИЯ                                                          */
   /* ================================================================== */
+
+  // Возвращает строку перевода для текущего языка
+  function t(key) {
+    return (I18N[currentLang] && I18N[currentLang][key]) || key;
+  }
+
+  // Форматирует строку, заменяя %s на аргументы
+  function fmt(key) {
+    let s = t(key);
+    const args = Array.prototype.slice.call(arguments, 1);
+    args.forEach(function(a) { s = s.replace('%s', a); });
+    return s;
+  }
+
+  // Перерисовывает все data-i18n элементы
+  function applyI18n() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (key) el.textContent = t(key);
+    });
+    // Кнопка переключения языка показывает противоположный язык
+    document.getElementById('btn-lang').textContent = currentLang === 'ru' ? 'EN' : 'RU';
+  }
+
+  function toggleLang() {
+    currentLang = currentLang === 'ru' ? 'en' : 'ru';
+    applyI18n();
+    // Перерисовываем UI с новым языком
+    refreshUI();
+    addLog('[LANG] Язык интерфейса: ' + currentLang.toUpperCase());
+  }
+
+  /* ================================================================== */
+  /* ЛОГ                                                                  */
+  /* ================================================================== */
+
+  function addLog(msg) {
+    const el = document.getElementById('log-output');
+    const now = new Date();
+    const ts = now.toTimeString().slice(0, 8);
+    el.textContent += '[' + ts + '] ' + msg + '\n';
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function saveLog() {
+    const text = document.getElementById('log-output').textContent;
+    if (!text.trim()) { toast(t('toast_no_history')); return; }
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dsl2flow_log_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(t('toast_log_saved'));
+  }
+
+  function clearLog() {
+    document.getElementById('log-output').textContent = '';
+    toast(t('toast_log_cleared'));
+  }
+
+  /* ================================================================== */
+  /* ЗАГРУЗКА ПРИМЕРА                                                     */
+  /* ================================================================== */
+
+  function loadSelectedExample() {
+    const key = document.getElementById('example-select').value;
+    if (!key) { toast(t('toast_select_example')); return; }
+    loadExampleByKey(key);
+  }
+
+  function loadExampleByKey(key) {
+    const src = EXAMPLES[key];
+    if (!src) { toast(t('toast_no_process')); return; }
+    document.getElementById('dsl-source').value = src;
+    initFromDSL(src);
+    // Не запускаем автоматически — пользователь нажмёт Start
+    addLog(t('log_loaded') + key);
+    toast(t('toast_loaded') + key);
+  }
+
+  /* ================================================================== */
+  /* ИНИЦИАЛИЗАЦИЯ ИЗ DSL                                                 */
+  /* ================================================================== */
+
   function initFromDSL(src) {
     try {
       const result = DSL2Translator.translate(src);
@@ -532,23 +1014,20 @@
       jsCode = result.jsCode;
       mermaidCode = result.mermaidCode;
 
-      // Build engine from generated code
-      const engineFactory = new Function(
-        jsCode + '\nreturn window["' + processDef.name + 'Engine"];'
-      );
+      // Создаём движок из сгенерированного кода
       try {
+        const engineFactory = new Function(jsCode + '\nreturn window["' + processDef.name + 'Engine"];');
         engine = engineFactory();
         if (!engine) {
-          // Fallback: eval the code and grab from window
-          eval(jsCode);
+          eval(jsCode); // eslint-disable-line no-eval
           engine = window[processDef.name + 'Engine'];
         }
       } catch(e) {
-        eval(jsCode);
+        eval(jsCode); // eslint-disable-line no-eval
         engine = window[processDef.name + 'Engine'];
       }
 
-      // Populate roles
+      // Заполняем список ролей
       const roleSelect = document.getElementById('role-select');
       roleSelect.innerHTML = '';
       for (const r of processDef.roles) {
@@ -557,36 +1036,46 @@
         opt.textContent = r;
         roleSelect.appendChild(opt);
       }
-      // Default to Supervisor
-      const supOpt = Array.from(roleSelect.options).find(o => o.value === 'Supervisor');
-      if (supOpt) supOpt.selected = true;
+      // По умолчанию — первая роль из списка (Supervisor/Супервайзер если есть)
+      const supervisorOpt = Array.from(roleSelect.options).find(
+        o => o.value === 'Supervisor' || o.value === 'Супервайзер'
+      );
+      if (supervisorOpt) supervisorOpt.selected = true;
 
-      // Render diagram
+      // Отрисовываем диаграмму
       renderMermaid(mermaidCode);
 
-      // Show generated JS
+      // Показываем сгенерированный JS
       document.getElementById('generated-js-pre').textContent = jsCode;
 
+      addLog(t('log_init'));
+
     } catch(err) {
-      toast('DSL parse error: ' + err.message);
+      addLog(t('log_error') + err.message);
+      toast(t('err_parse') + err.message);
       console.error(err);
     }
   }
 
   /* ================================================================== */
-  /* START PROCESS                                                        */
+  /* ЗАПУСК ПРОЦЕССА                                                      */
   /* ================================================================== */
+
   function startProcess() {
-    if (!engine) return;
+    if (!engine) { toast(t('toast_no_process')); return; }
     engine.createInstance();
     document.getElementById('finished-banner').style.display = 'none';
+    const st = engine.getState();
+    addLog(t('log_started') + (st ? st.currentFunction : '?'));
+    toast(t('toast_started'));
+    applyI18n();
     refreshUI();
-    toast('Process started.');
   }
 
   /* ================================================================== */
-  /* RENDER UI                                                            */
+  /* ОБНОВЛЕНИЕ UI                                                        */
   /* ================================================================== */
+
   function refreshUI() {
     if (!engine) return;
     const st = engine.getState();
@@ -604,9 +1093,10 @@
 
     if (st.finished) {
       document.getElementById('finished-banner').style.display = 'block';
+      document.getElementById('finished-banner').textContent = t('process_finished');
     }
 
-    // Doc tokens
+    // Токены документов
     const dtList = document.getElementById('doc-token-list');
     dtList.innerHTML = '';
     for (const [docType, docState] of Object.entries(st.docTokens)) {
@@ -619,7 +1109,7 @@
     renderStateTable();
   }
 
-  /* ---- Action Buttons ---- */
+  /* ---- Кнопки действий ---- */
   function renderActions() {
     if (!engine) return;
     const st = engine.getState();
@@ -629,8 +1119,8 @@
 
     if (!st || st.finished) {
       hint.textContent = st && st.finished
-        ? 'Process finished. Click "Start / Restart" to run again.'
-        : 'Process not started.';
+        ? t('hint_finished')
+        : t('hint_not_started');
       return;
     }
 
@@ -641,45 +1131,43 @@
     const selectedRole = document.getElementById('role-select').value;
     const canExecute = funcDef.role === 'System' ||
                        selectedRole === funcDef.role ||
-                       selectedRole === 'Supervisor';
+                       selectedRole === 'Supervisor' ||
+                       selectedRole === 'Супервайзер';
 
     if (!canExecute) {
-      hint.textContent = `This step requires role: "${funcDef.role}". Switch role to continue.`;
+      hint.textContent = fmt('hint_role_needed', funcDef.role);
       return;
     }
 
-    hint.textContent = `Function: ${funcDef.name}  ·  Role: ${funcDef.role}`;
+    hint.textContent = fmt('hint_function', funcDef.name, funcDef.role);
 
-    // If function is "System", auto-execute
+    // Системная функция — автовыполнение
     if (funcDef.role === 'System') {
-      hint.textContent = 'System function — auto-executing...';
+      hint.textContent = t('hint_system');
       setTimeout(() => {
         doExecute(selectedRole, null);
       }, 600);
       return;
     }
 
-    // Build buttons from on_complete events
+    // Кнопки на основе событий on_complete
     const events = funcDef.on_complete || [];
     if (events.length === 0) {
-      // Fallback: single "Complete" button
-      const btn = makeBtn('Complete', 'btn-primary', () => doExecute(selectedRole, null));
+      const btn = makeBtn(t('label_complete'), 'btn-primary', () => doExecute(selectedRole, null));
       container.appendChild(btn);
       return;
     }
 
-    // Infer buttons from event names/conditions
     for (const oc of events) {
       let label = oc.event;
       let cls = 'btn-primary';
 
-      // Heuristics for nice labels
       if (oc.condition && oc.condition.includes("'approved'")) {
-        label = 'Согласовано / Approve'; cls = 'btn-success';
+        label = t('label_approve'); cls = 'btn-success';
       } else if (oc.condition && oc.condition.includes("'rejected'")) {
-        label = 'Отказано / Reject'; cls = 'btn-danger';
+        label = t('label_reject'); cls = 'btn-danger';
       } else if (events.length === 1) {
-        label = 'Submit / На Согласование';
+        label = t('label_submit');
       }
 
       const decision = oc.condition
@@ -704,16 +1192,21 @@
     if (!engine) return;
     const result = engine.execute(role, decision);
     if (!result.ok) {
+      addLog(t('log_error') + result.error);
       toast('Error: ' + result.error);
       return;
     }
-    toast('Event fired: ' + result.event);
+    addLog(t('log_event') + result.event);
+    if (result.finished) {
+      addLog(t('log_finished'));
+    } else if (result.nextFunction) {
+      addLog(t('log_function') + result.nextFunction);
+    }
+    toast(t('log_event').replace('[СОБЫТИЕ] ', '').replace('[EVENT] ', '') + result.event);
     refreshUI();
-
-    // If next is also a System function, let renderActions auto-trigger it
   }
 
-  /* ---- State Table ---- */
+  /* ---- Таблица состояний ---- */
   function renderStateTable() {
     if (!engine) return;
     const history = engine.getHistory();
@@ -721,13 +1214,12 @@
     tbody.innerHTML = '';
 
     if (history.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color:#9ca3af;padding:20px;text-align:center;">No history yet.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="7" style="color:#9ca3af;padding:20px;text-align:center;">${t('table_empty')}</td></tr>`;
       return;
     }
 
     for (const row of history) {
       const tr = document.createElement('tr');
-
       const docTrans = Object.entries(row.docTransitions || {})
         .map(([k, v]) => `${k}: ${v.from} → ${v.to}`)
         .join('; ') || '—';
@@ -750,13 +1242,14 @@
   }
 
   /* ================================================================== */
-  /* MERMAID RENDER                                                       */
+  /* ОТРИСОВКА MERMAID                                                    */
   /* ================================================================== */
+
   async function renderMermaid(code) {
     const container = document.getElementById('mermaid-diagram');
     container.innerHTML = '';
     try {
-      const { svg } = await mermaid.render('epc2-graph', code);
+      const { svg } = await mermaid.render('epc2-graph-' + Date.now(), code);
       container.innerHTML = svg;
     } catch(e) {
       container.innerHTML = '<pre style="color:red;font-size:.8rem;">' + e.message + '\n\n' + code + '</pre>';
@@ -764,39 +1257,37 @@
   }
 
   /* ================================================================== */
-  /* EXCEL EXPORT                                                         */
+  /* ЭКСПОРТ В EXCEL                                                      */
   /* ================================================================== */
+
   function exportExcel() {
-    if (!engine) { toast('No process loaded.'); return; }
+    if (!engine) { toast(t('toast_no_process')); return; }
     const history = engine.getHistory();
-    if (history.length === 0) { toast('No history to export.'); return; }
+    if (history.length === 0) { toast(t('toast_no_history')); return; }
 
     const rows = history.map(row => {
       const docTrans = Object.entries(row.docTransitions || {})
         .map(([k, v]) => `${k}: ${v.from} → ${v.to}`)
         .join('; ') || '';
       return {
-        'Tick':              row.tick,
-        'Function':          row.function || '',
-        'Role':              row.role || '',
-        'WF Token Before':   row.workflowTokenBefore || '',
-        'WF Token After':    row.workflowTokenAfter || '',
-        'Event Fired':       row.eventFired || '',
-        'Doc Transitions':   docTrans
+        'Tick / Шаг':        row.tick,
+        'Function / Функция': row.function || '',
+        'Role / Роль':        row.role || '',
+        'WF Token Before':    row.workflowTokenBefore || '',
+        'WF Token After':     row.workflowTokenAfter || '',
+        'Event Fired':        row.eventFired || '',
+        'Doc Transitions':    docTrans
       };
     });
 
     const ws = XLSX.utils.json_to_sheet(rows);
-
-    // Column widths
     ws['!cols'] = [
-      { wch: 6 }, { wch: 22 }, { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 40 }
+      { wch: 8 }, { wch: 28 }, { wch: 16 }, { wch: 28 }, { wch: 28 }, { wch: 28 }, { wch: 40 }
     ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'State Table');
 
-    // Metadata sheet
     const def = engine.getDefinition();
     const metaRows = [
       { Key: 'Process', Value: def.name },
@@ -807,18 +1298,22 @@
     XLSX.utils.book_append_sheet(wb, wsMeta, 'Metadata');
 
     XLSX.writeFile(wb, (def.name || 'process') + '_state_table.xlsx');
-    toast('Exported to Excel.');
+    toast(t('toast_exported'));
   }
 
   /* ================================================================== */
   /* TOAST                                                                */
   /* ================================================================== */
+
   function toast(msg) {
     const el = document.getElementById('toast');
     el.textContent = msg;
     el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 2800);
   }
+
+  /* ---- Применяем локализацию при загрузке ---- */
+  applyI18n();
 
 })();
 </script>
