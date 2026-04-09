@@ -343,6 +343,21 @@
     return eng;
   }
 
+  /* ---- Обёртка: создаёт движок с перехватом ошибки ---- */
+  function tryCreateEngine(sectionName) {
+    try {
+      const eng = createEngine();
+      if (!eng) {
+        assert(sectionName + ': движок создан', false, 'createEngine() вернул null/undefined');
+        return null;
+      }
+      return eng;
+    } catch(e) {
+      assert(sectionName + ': движок создан', false, e.message);
+      return null;
+    }
+  }
+
   /* ---- 4. Тест базовой работы движка ---- */
   function testEngineBasic() {
     section('4. Базовая работа движка');
@@ -371,7 +386,8 @@
   /* ---- 5. Тест переходов документов ---- */
   function testEngineDocTransitions() {
     section('5. Переходы состояний документов');
-    const eng = createEngine();
+    const eng = tryCreateEngine('5');
+    if (!eng) return;
     eng.createInstance();
     const st0 = eng.getState();
     assert('Начальное состояние Doc: draft', st0.docTokens['Doc'] === 'draft',
@@ -391,7 +407,8 @@
   /* ---- 6. Тест проверки ролей ---- */
   function testEngineRoleCheck() {
     section('6. Проверка ролей');
-    const eng = createEngine();
+    const eng = tryCreateEngine('6');
+    if (!eng) return;
     eng.createInstance();
     // Шаг 1 требует роль Applicant
     const r_wrong = eng.execute('Manager', null);
@@ -405,7 +422,8 @@
   /* ---- 7. Тест Supervisor ---- */
   function testEngineSupervisor() {
     section('7. Supervisor (суперпользователь)');
-    const eng = createEngine();
+    const eng = tryCreateEngine('7');
+    if (!eng) return;
     eng.createInstance();
     // Supervisor может выполнить любую функцию
     const r = eng.execute('Supervisor', null);
@@ -415,7 +433,8 @@
   /* ---- 8. Тест истории ---- */
   function testEngineHistory() {
     section('8. История выполнения');
-    const eng = createEngine();
+    const eng = tryCreateEngine('8');
+    if (!eng) return;
     eng.createInstance();
     assert('История после createInstance: 1 запись', eng.getHistory().length === 1,
            'length=' + eng.getHistory().length);
@@ -427,7 +446,8 @@
   /* ---- 9. Тест полного пути одобрения ---- */
   function testEngineApprovalPath() {
     section('9. Полный путь: одобрение');
-    const eng = createEngine();
+    const eng = tryCreateEngine('9');
+    if (!eng) return;
     eng.createInstance();
     // Step1: Applicant подаёт
     const r1 = eng.execute('Applicant', null);
@@ -447,7 +467,8 @@
   /* ---- 10. Тест полного пути отклонения ---- */
   function testEngineRejectionPath() {
     section('10. Полный путь: отклонение');
-    const eng = createEngine();
+    const eng = tryCreateEngine('10');
+    if (!eng) return;
     eng.createInstance();
     eng.execute('Applicant', null);
     const r2 = eng.execute('Manager', 'rejected');
