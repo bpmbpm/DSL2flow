@@ -10,7 +10,7 @@
  * Returns:      { definition, jsCode, mermaidCode }
  */
 
-const DSL2Translator = (() => {
+var DSL2Translator = (() => {
   /* ------------------------------------------------------------------ */
   /* 1.  PARSER                                                           */
   /* ------------------------------------------------------------------ */
@@ -481,10 +481,13 @@ const DSL2Translator = (() => {
     return { definition, jsCode, mermaidCode };
   }
 
-  // Export
+  // Публичный интерфейс
+  const api = { translate, parse, generateJS, generateMermaid };
+
+  // Экспорт для Node.js (тесты) или браузера
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { translate, parse, generateJS, generateMermaid };
-  } else {
-    window.DSL2Translator = { translate, parse, generateJS, generateMermaid };
+    module.exports = api;
   }
+
+  return api;
 })();
